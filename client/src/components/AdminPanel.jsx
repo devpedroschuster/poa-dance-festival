@@ -167,8 +167,12 @@ const carregarDados = () => {
                   </LinkButton>
                   <br/>
                   
-                  <LinkButton 
-                    href={`${API_URL}/${item.caminhoMusica?.replace(/\\/g, '/')}`} 
+                 <LinkButton 
+                    href={
+                      item.caminhoMusica?.startsWith('http') 
+                        ? item.caminhoMusica // Se já tem http, é Cloudinary (usa direto)
+                        : `${API_URL}/${item.caminhoMusica?.replace(/\\/g, '/')}` // Senão, é antigo (monta o link)
+                          } 
                     target="_blank"
                   >
                     Baixar Música 🎵

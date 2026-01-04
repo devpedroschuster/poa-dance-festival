@@ -2,14 +2,28 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const multer = require('multer');
-const fs = require('fs');
-const path = require('path');
 const mongoose = require('mongoose');
+const { v2: cloudinary } = require('cloudinary');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: 'inmotion-festival',
+    resource_type: 'auto',
+  },
+});
+
+const upload = multer({ storage: storage });
 
 const MONGO_URI = process.env.MONGO_URI;
 
@@ -39,23 +53,11 @@ const Coreografia = mongoose.model('Coreografia', CoreografiaSchema);
 app.use(cors());
 app.use(express.json());
 
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    const uploadDir = 'uploads/';
-    if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
-    cb(null, uploadDir);
-  },
-  filename: function (req, file, cb) {
-    cb(null, 'musica-' + Date.now() + '-' + file.originalname);
-  }
-});
-const upload = multer({ storage: storage });
 
 app.post('/api/inscrever', async (req, res) => {
   try {
     const novaInscricao = new Inscricao(req.body);
     await novaInscricao.save();
-    
     console.log('Inscrição salva:', novaInscricao);
     res.status(201).json({ mensagem: 'Sucesso!' });
   } catch (error) {
@@ -96,6 +98,7 @@ app.post('/api/submeter-coreografia', upload.single('musica'), async (req, res) 
   try {
     const novaCoreografia = new Coreografia({
       ...req.body,
+
       caminhoMusica: req.file.path
     });
     
@@ -108,7 +111,6 @@ app.post('/api/submeter-coreografia', upload.single('musica'), async (req, res) 
     res.status(500).json({ erro: 'Erro ao salvar coreografia' });
   }
 });
-
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta http://localhost:${PORT}`);
