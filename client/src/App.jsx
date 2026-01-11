@@ -17,7 +17,16 @@ const MainContent = styled.div`
 `;
 
 function App() {
-  const [isAdminLogado, setIsAdminLogado] = useState(false);
+ // Ao iniciar, verifica se tem token salvo no LocalStorage
+  const [isAdminLogado, setIsAdminLogado] = useState(() => {
+    return !!localStorage.getItem('poadance_token');
+  });
+
+  // Função para deslogar (Opcional, mas útil)
+  const handleLogout = () => {
+    localStorage.removeItem('poadance_token');
+    setIsAdminLogado(false);
+  };
 
   return (
     <BrowserRouter>
@@ -36,7 +45,7 @@ function App() {
 
           <Route path="/admin" element={
             isAdminLogado ? (
-              <AdminPanel />
+              <AdminPanel onLogout={handleLogout} /> 
             ) : (
               <Login onLoginSuccess={() => setIsAdminLogado(true)} />
             )

@@ -7,29 +7,18 @@ const Container = styled.div`
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   height: 60vh; color: white;
 `;
-
-const Title = styled.h2`
-  color: #ff4081; margin-bottom: 10px;
-`;
-
 const Input = styled.input`
-  padding: 15px; margin-top: 20px; border-radius: 5px; border: 1px solid #333;
-  background-color: #222; color: white; font-size: 1.2rem; text-align: center;
-  width: 100%; max-width: 300px;
-  
-  &:focus { outline: none; border-color: #ff4081; }
+  padding: 15px; margin-top: 15px; border-radius: 5px; border: 1px solid #333;
+  background-color: #222; color: white; font-size: 1.1rem; width: 100%; max-width: 300px;
 `;
-
 const Button = styled.button`
   margin-top: 20px; padding: 15px 40px; background-color: #ff4081; color: white;
   border: none; border-radius: 50px; font-weight: bold; cursor: pointer; font-size: 1.1rem;
-  transition: 0.3s;
-  
-  &:hover { transform: scale(1.05); }
 `;
 
 export default function Login({ onLoginSuccess }) {
-  const [senha, setSenha] = useState('');
+  // Agora temos login e senha
+  const [form, setForm] = useState({ login: '', senha: '' });
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -37,32 +26,35 @@ export default function Login({ onLoginSuccess }) {
       const res = await fetch(`${API_URL}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ senha })
+        body: JSON.stringify(form)
       });
       const data = await res.json();
 
       if (data.sucesso) {
-        toast.success('Acesso Liberado! 😎');
+        // SALVA O TOKEN NO NAVEGADOR
+        localStorage.setItem('poadance_token', data.token);
+        
+        toast.success('Login realizado! 🔓');
         onLoginSuccess();
       } else {
-        toast.error('Senha Incorreta 🔒');
+        toast.error(data.mensagem || 'Dados incorretos');
       }
     } catch (err) {
-      toast.error('Erro de conexão com o servidor.');
+      toast.error('Erro de conexão');
     }
   };
 
   return (
     <Container>
-      <Title>Área Restrita 🔒</Title>
-      <p>Digite a senha de administrador.</p>
-      
-      <form onSubmit={handleLogin} style={{display: 'flex', flexDirection: 'column', alignItems: 'center', width: '100%'}}>
+      <h2>Área Restrita 🔒</h2>
+      <form onSubmit={handleLogin} style={{display:'flex', flexDirection:'column', alignItems:'center', width:'100%'}}>
         <Input 
-          type="password" 
-          placeholder="Senha" 
-          value={senha} 
-          onChange={e => setSenha(e.target.value)} 
+          type="text" placeholder="Usuário" 
+          value={form.login} onChange={e => setForm({...form, login: e.target.value})} 
+        />
+        <Input 
+          type="password" placeholder="Senha" 
+          value={form.senha} onChange={e => setForm({...form, senha: e.target.value})} 
         />
         <Button type="submit">Entrar</Button>
       </form>
