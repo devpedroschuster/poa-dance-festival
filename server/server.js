@@ -58,7 +58,16 @@ const CoreografiaSchema = new mongoose.Schema({
 });
 const Coreografia = mongoose.model('Coreografia', CoreografiaSchema);
 
-app.use(cors());
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'https://poadance-festival.vercel.app',
+    'https://inmotion-festival.vercel.app'
+  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}))
+
 app.use(express.json());
 
 
