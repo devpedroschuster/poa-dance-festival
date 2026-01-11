@@ -112,6 +112,48 @@ app.post('/api/submeter-coreografia', upload.single('musica'), async (req, res) 
   }
 });
 
+app.post('/api/login', (req, res) => {
+  const { senha } = req.body;
+  
+  // Compara a senha enviada com a que está no .env
+  if (senha === process.env.ADMIN_PASSWORD) {
+    res.json({ sucesso: true, token: 'acesso-liberado' });
+  } else {
+    res.status(401).json({ sucesso: false, mensagem: 'Senha incorreta!' });
+  }
+});
+
+// 1. ATUALIZAR INSCRIÇÃO (AULA)
+app.put('/api/inscricoes/:id', async (req, res) => {
+  try {
+    // O { new: true } serve para o Mongo devolver o dado já atualizado
+    const atualizado = await Inscricao.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(atualizado);
+  } catch (error) {
+    res.status(500).json({ erro: 'Erro ao atualizar inscrição' });
+  }
+});
+
+// 2. DELETAR COREOGRAFIA
+app.delete('/api/coreografias/:id', async (req, res) => {
+  try {
+    await Coreografia.findByIdAndDelete(req.params.id);
+    res.status(200).json({ mensagem: 'Coreografia removida!' });
+  } catch (error) {
+    res.status(500).json({ erro: 'Erro ao deletar coreografia' });
+  }
+});
+
+// 3. ATUALIZAR COREOGRAFIA (Dados de texto)
+app.put('/api/coreografias/:id', async (req, res) => {
+  try {
+    const atualizado = await Coreografia.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(atualizado);
+  } catch (error) {
+    res.status(500).json({ erro: 'Erro ao atualizar coreografia' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Servidor rodando na porta http://localhost:${PORT}`);
 });
