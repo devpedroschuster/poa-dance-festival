@@ -17,18 +17,14 @@ const MainContent = styled.div`
 `;
 
 function App() {
-  // Estado para controlar se a senha do admin foi digitada corretamente
-  // (Esse estado reseta se a pessoa atualizar a página, o que é bom para segurança)
   const [isAdminLogado, setIsAdminLogado] = useState(false);
 
   return (
-    // O BrowserRouter habilita a navegação por URLs
     <BrowserRouter>
       <MainContent>
         <ToastContainer position="top-center" autoClose={3000} theme="dark" />
         
         <Routes>
-          {/* ROTA 1: A Página Principal ("/") */}
           <Route path="/" element={
             <>
               <Header />
@@ -38,17 +34,14 @@ function App() {
             </>
           } />
 
-          {/* ROTA 2: A Página de Admin ("/admin") */}
           <Route path="/admin" element={
-            // Lógica de Proteção:
             isAdminLogado ? (
-              <AdminPanel /> // Se logou, mostra o painel
+              <AdminPanel />
             ) : (
-              <Login onLoginSuccess={() => setIsAdminLogado(true)} /> // Senão, mostra login
+              <Login onLoginSuccess={() => setIsAdminLogado(true)} />
             )
           } />
 
-          {/* ROTA CORINGA: Se digitar qualquer outra coisa, joga para a Home */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
 

@@ -37,7 +37,7 @@ const LinkItem = styled.a`
 export default function Header() {
   return (
     <HeaderContainer>
-      <Logo>InMotion Festival</Logo>
+      <Logo>POA Dance Festival</Logo>
       <Nav>
         <LinkItem href="#">Home</LinkItem>
         <LinkItem href="#">Programação</LinkItem>

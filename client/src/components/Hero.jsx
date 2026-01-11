@@ -58,7 +58,7 @@ export default function Hero() {
     <HeroContainer>
       <Title>O Ritmo <span>Conecta</span></Title>
       <Subtitle>
-        Participe do maior encontro de dança da região. Workshops, batalhas e muita energia.
+        Participe do POA Dance Festival. Workshops, batalhas e muita energia.
       </Subtitle>
       <CTAButton>Garantir Minha Vaga</CTAButton>
     </HeroContainer>

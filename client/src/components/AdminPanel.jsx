@@ -44,7 +44,6 @@ const LinkButton = styled.a`
   &:hover { text-decoration: underline; }
 `;
 
-// --- ESTILOS DO MODAL DE EDIÇÃO ---
 const ModalOverlay = styled.div`
   position: fixed; top: 0; left: 0; width: 100%; height: 100%;
   background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 1000;
@@ -67,9 +66,8 @@ export default function AdminPanel() {
   const [inscricoes, setInscricoes] = useState([]);
   const [coreografias, setCoreografias] = useState([]);
   
-  // Estados para Edição
-  const [editandoItem, setEditandoItem] = useState(null); // O objeto sendo editado
-  const [tipoEdicao, setTipoEdicao] = useState(null); // 'inscricao' ou 'coreografia'
+  const [editandoItem, setEditandoItem] = useState(null);
+  const [tipoEdicao, setTipoEdicao] = useState(null);
 
   const carregarDados = () => {
     fetch(`${API_URL}/inscricoes`)
@@ -87,7 +85,6 @@ export default function AdminPanel() {
     carregarDados();
   }, []);
 
-  // --- FUNÇÕES DE DELETAR ---
   const handleDelete = async (id, tipo) => {
     if (!window.confirm('Tem certeza que deseja excluir? Essa ação não pode ser desfeita.')) return;
 
@@ -106,9 +103,8 @@ export default function AdminPanel() {
     }
   };
 
-  // --- FUNÇÕES DE EDITAR ---
   const abrirModalEdicao = (item, tipo) => {
-    setEditandoItem({ ...item }); // Cria uma cópia para não alterar a tabela direto
+    setEditandoItem({ ...item });
     setTipoEdicao(tipo);
   };
 
@@ -125,8 +121,8 @@ export default function AdminPanel() {
 
       if (res.ok) {
         toast.success('Atualizado com sucesso! 💾');
-        setEditandoItem(null); // Fecha o modal
-        carregarDados(); // Recarrega a tabela
+        setEditandoItem(null);
+        carregarDados();
       } else {
         toast.error('Erro ao atualizar.');
       }
@@ -270,8 +266,6 @@ export default function AdminPanel() {
                       onChange={e => setEditandoItem({...editandoItem, videoLink: e.target.value})}
                     />
                   </FormGroup>
-                  {/* Nota: Não permitimos editar o arquivo de música aqui para não complicar, 
-                      apenas os textos. Se errar a música, melhor excluir e enviar de novo. */}
                 </>
               )}
 

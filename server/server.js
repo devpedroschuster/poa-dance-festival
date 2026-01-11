@@ -5,6 +5,7 @@ const multer = require('multer');
 const mongoose = require('mongoose');
 const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const nodemailer = require('nodemailer');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -18,12 +19,19 @@ cloudinary.config({
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
-    folder: 'inmotion-festival',
+    folder: 'poa-dance-festival',
     resource_type: 'auto',
   },
 });
-
 const upload = multer({ storage: storage });
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+  });
 
 const MONGO_URI = process.env.MONGO_URI;
 
@@ -58,10 +66,32 @@ app.post('/api/inscrever', async (req, res) => {
   try {
     const novaInscricao = new Inscricao(req.body);
     await novaInscricao.save();
+    
     console.log('Inscrição salva:', novaInscricao);
+
+    const mailOptions = {
+      from: 'POA Dance Festival <nao-responda@poadance.com>',
+      to: novaInscricao.email,
+      subject: 'Inscrição Confirmada! - POA Dance Festival 💃✨',
+      html: `
+        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px;">
+          <h1 style="color: #ff4081;">Olá, ${novaInscricao.nome}!</h1> 
+          
+          <p>Sua inscrição para a aula de <strong>${novaInscricao.aula}</strong> foi confirmada com sucesso.</p>
+          
+          <p>Estamos ansiosos para ver você no <strong>POA Dance Festival</strong>!</p>
+          <hr/>
+          <p style="font-size: 12px; color: #888;">Equipe POA Dance Festival</p>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+
     res.status(201).json({ mensagem: 'Sucesso!' });
   } catch (error) {
-    res.status(500).json({ erro: 'Erro ao salvar inscrição' });
+    console.error('Erro no processo:', error);
+    res.status(500).json({ erro: 'Erro ao processar inscrição' });
   }
 });
 
@@ -98,13 +128,36 @@ app.post('/api/submeter-coreografia', upload.single('musica'), async (req, res) 
   try {
     const novaCoreografia = new Coreografia({
       ...req.body,
-
       caminhoMusica: req.file.path
     });
     
     await novaCoreografia.save();
     
     console.log('Coreografia salva:', novaCoreografia.nomeCoreografia);
+
+    const mailOptions = {
+      from: 'POA Dance Festival <nao-responda@poadance.com>',
+      to: novaCoreografia.email,
+      subject: 'Material Recebido! - POA Dance Festival 🎵',
+      html: `
+        <div style="font-family: Arial, sans-serif; color: #333; max-width: 600px;">
+          <h1 style="color: #ff4081;">Olá, ${novaCoreografia.coreografo}!</h1>
+          
+          <p>Confirmamos o recebimento dos materiais da coreografia:</p>
+          <h3 style="background-color: #f4f4f4; padding: 10px; border-radius: 5px;">
+            ${novaCoreografia.nomeCoreografia}
+          </h3>
+          
+          <p>O arquivo de música e o link do vídeo já estão em nosso sistema.</p>
+          <p>Nos vemos no palco!</p>
+          <hr/>
+          <p style="font-size: 12px; color: #888;">Equipe POA Dance Festival</p>
+        </div>
+      `
+    };
+
+    await transporter.sendMail(mailOptions);
+
     res.status(201).json({ mensagem: 'Coreografia recebida!' });
   } catch (error) {
     console.error(error);
@@ -115,7 +168,6 @@ app.post('/api/submeter-coreografia', upload.single('musica'), async (req, res) 
 app.post('/api/login', (req, res) => {
   const { senha } = req.body;
   
-  // Compara a senha enviada com a que está no .env
   if (senha === process.env.ADMIN_PASSWORD) {
     res.json({ sucesso: true, token: 'acesso-liberado' });
   } else {
@@ -123,10 +175,8 @@ app.post('/api/login', (req, res) => {
   }
 });
 
-// 1. ATUALIZAR INSCRIÇÃO (AULA)
 app.put('/api/inscricoes/:id', async (req, res) => {
   try {
-    // O { new: true } serve para o Mongo devolver o dado já atualizado
     const atualizado = await Inscricao.findByIdAndUpdate(req.params.id, req.body, { new: true });
     res.json(atualizado);
   } catch (error) {
@@ -134,7 +184,6 @@ app.put('/api/inscricoes/:id', async (req, res) => {
   }
 });
 
-// 2. DELETAR COREOGRAFIA
 app.delete('/api/coreografias/:id', async (req, res) => {
   try {
     await Coreografia.findByIdAndDelete(req.params.id);
@@ -144,7 +193,6 @@ app.delete('/api/coreografias/:id', async (req, res) => {
   }
 });
 
-// 3. ATUALIZAR COREOGRAFIA (Dados de texto)
 app.put('/api/coreografias/:id', async (req, res) => {
   try {
     const atualizado = await Coreografia.findByIdAndUpdate(req.params.id, req.body, { new: true });
