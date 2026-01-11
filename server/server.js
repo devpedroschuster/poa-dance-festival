@@ -7,7 +7,6 @@ const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
 const nodemailer = require('nodemailer');
 
-// IMPORTS DE SEGURANÇA
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
@@ -15,14 +14,12 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'segredo_padrao_dev';
 
-// 1. CONFIGURAÇÃO CLOUDINARY
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// 2. CONFIGURAÇÃO STORAGE (Só existe esta agora!)
 const storage = new CloudinaryStorage({
   cloudinary: cloudinary,
   params: {
@@ -32,21 +29,22 @@ const storage = new CloudinaryStorage({
 });
 const upload = multer({ storage: storage });
 
-// 3. CONFIGURAÇÃO EMAIL
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true,
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
-  }
+  },
+  connectionTimeout: 10000, 
+  greetingTimeout: 10000 
 });
 
-// 4. CONEXÃO MONGO
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ MongoDB Conectado!'))
   .catch(err => console.error('❌ Erro Mongo:', err));
 
-// --- SCHEMAS ---
 const InscricaoSchema = new mongoose.Schema({
   nome: String,
   email: String,
@@ -72,7 +70,6 @@ const UsuarioSchema = new mongoose.Schema({
 });
 const Usuario = mongoose.model('Usuario', UsuarioSchema);
 
-// --- MIDDLEWARES ---
 app.use(cors({
   origin: [
     'http://localhost:5173',
@@ -83,9 +80,7 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// --- ROTAS ---
 
-// 🔐 ROTA DE LOGIN (A Única e Correta)
 app.post('/api/login', async (req, res) => {
   const { login, senha } = req.body;
   try {
@@ -107,7 +102,6 @@ app.post('/api/inscrever', async (req, res) => {
     const novaInscricao = new Inscricao(req.body);
     await novaInscricao.save();
     
-    // Email de confirmação
     const mailOptions = {
       from: 'POA Dance Festival <nao-responda@poadance.com>',
       to: novaInscricao.email,
@@ -143,7 +137,6 @@ app.put('/api/inscricoes/:id', async (req, res) => {
   } catch (error) { res.status(500).json({ erro: 'Erro ao atualizar' }); }
 });
 
-// COREOGRAFIAS
 app.get('/api/coreografias', async (req, res) => {
   try {
     const lista = await Coreografia.find();
@@ -160,7 +153,6 @@ app.post('/api/submeter-coreografia', upload.single('musica'), async (req, res) 
     });
     await novaCoreografia.save();
     
-    // Email coreografia
     const mailOptions = {
       from: 'POA Dance Festival <nao-responda@poadance.com>',
       to: novaCoreografia.email,
@@ -187,7 +179,6 @@ app.put('/api/coreografias/:id', async (req, res) => {
   } catch (error) { res.status(500).json({ erro: 'Erro ao atualizar' }); }
 });
 
-// ALTERAR SENHA
 app.put('/api/alterar-senha', async (req, res) => {
   const token = req.headers['authorization'];
   if (!token) return res.status(401).json({ mensagem: 'Acesso negado' });
@@ -201,10 +192,8 @@ app.put('/api/alterar-senha', async (req, res) => {
   } catch (error) { res.status(403).json({ mensagem: 'Token inválido' }); }
 });
 
-// INICIALIZAÇÃO
 app.listen(PORT, async () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
-  // Cria Admin Padrão se não existir
   const adminExiste = await Usuario.findOne({ login: 'admin' });
   if (!adminExiste) {
     const salt = await bcrypt.genSalt(10);

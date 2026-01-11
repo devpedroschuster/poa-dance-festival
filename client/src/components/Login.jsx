@@ -17,7 +17,6 @@ const Button = styled.button`
 `;
 
 export default function Login({ onLoginSuccess }) {
-  // Agora temos login e senha
   const [form, setForm] = useState({ login: '', senha: '' });
 
   const handleLogin = async (e) => {
@@ -31,7 +30,6 @@ export default function Login({ onLoginSuccess }) {
       const data = await res.json();
 
       if (data.sucesso) {
-        // SALVA O TOKEN NO NAVEGADOR
         localStorage.setItem('poadance_token', data.token);
         
         toast.success('Login realizado! 🔓');

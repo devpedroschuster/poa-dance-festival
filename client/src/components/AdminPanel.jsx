@@ -43,7 +43,7 @@ const ChartContainer = styled.div`
   padding: 20px;
   border-radius: 10px;
   margin-bottom: 40px;
-  height: 350px; /* Altura fixa para o gráfico */
+  height: 350px;
 `;
 
 const Table = styled.table`
@@ -130,10 +130,9 @@ export default function AdminPanel() {
 
   const abrirModal = (item, tipo) => { setEditandoItem({ ...item }); setTipoEdicao(tipo); };
 
-// Função para alterar senha
   const handleAlterarSenha = async () => {
     const novaSenha = prompt("Digite a nova senha de Admin:");
-    if (!novaSenha) return; // Se cancelar, para tudo
+    if (!novaSenha) return;
 
     const token = localStorage.getItem('poadance_token');
 
@@ -142,7 +141,7 @@ export default function AdminPanel() {
         method: 'PUT',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': token // Envia o crachá para o servidor deixar passar
+          'Authorization': token
         },
         body: JSON.stringify({ novaSenha })
       });
