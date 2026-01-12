@@ -5,7 +5,9 @@ const multer = require('multer');
 const mongoose = require('mongoose');
 const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const nodemailer = require('nodemailer');
+//const nodemailer = require('nodemailer'); Deixando por enquanto, mas não funcionou (timeout)
+const { Resend } = require('resend');
+
 
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -29,18 +31,8 @@ const storage = new CloudinaryStorage({
 });
 const upload = multer({ storage: storage });
 
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 587,
-  secure: false,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
-  },
-  tls: {
-    rejectUnauthorized: false
-  }
-});
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ MongoDB Conectado!'))
@@ -103,16 +95,17 @@ app.post('/api/inscrever', async (req, res) => {
     const novaInscricao = new Inscricao(req.body);
     await novaInscricao.save();
     
-    const mailOptions = {
-      from: 'POA Dance Festival <nao-responda@poadance.com>',
+await resend.emails.send({
+      from: 'POA Dance Festival <onboarding@resend.dev>',
       to: novaInscricao.email,
       subject: 'Inscrição Confirmada! - POA Dance Festival 💃✨',
       html: `<h1>Olá, ${novaInscricao.nome}!</h1><p>Sua inscrição em <strong>${novaInscricao.aula}</strong> foi confirmada.</p>`
-    };
-    await transporter.sendMail(mailOptions).catch(err => console.error("Erro email:", err));
+    });
+    // ----------------------------------------
 
     res.status(201).json({ mensagem: 'Sucesso!' });
   } catch (error) {
+    console.error('Erro ao enviar inscrição:', error);
     res.status(500).json({ erro: 'Erro ao processar inscrição' });
   }
 });
@@ -154,16 +147,18 @@ app.post('/api/submeter-coreografia', upload.single('musica'), async (req, res) 
     });
     await novaCoreografia.save();
     
-    const mailOptions = {
-      from: 'POA Dance Festival <nao-responda@poadance.com>',
+await resend.emails.send({
+      from: 'POA Dance Festival <onboarding@resend.dev>', // Email obrigatório para testes
       to: novaCoreografia.email,
       subject: 'Material Recebido! - POA Dance Festival 🎵',
       html: `<h1>Olá, ${novaCoreografia.coreografo}!</h1><p>Recebemos <strong>${novaCoreografia.nomeCoreografia}</strong> com sucesso.</p>`
-    };
-    await transporter.sendMail(mailOptions).catch(err => console.error("Erro email:", err));
-
-    res.status(201).json({ mensagem: 'Recebido!' });
-  } catch (error) { res.status(500).json({ erro: 'Erro ao salvar' }); }
+    });
+    
+    res.status(201).json({ mensagem: 'Sucesso!' });
+  } catch (error) {
+    console.error('Erro ao enviar inscrição:', error); // Bom para ver erros no log
+    res.status(500).json({ erro: 'Erro ao processar inscrição' });
+  }
 });
 
 app.delete('/api/coreografias/:id', async (req, res) => {
