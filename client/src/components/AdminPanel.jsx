@@ -1,284 +1,196 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
 import styled from 'styled-components';
 import { toast } from 'react-toastify';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts';
-import API_URL from '../api';
 
+const MAPA_LIMITES = {
+  'Jazz Funk': 25,
+  'Hip Hop': 40,
+  'Contemporâneo': 30,
+  'K-Pop': 35,
+  'Stiletto': 20,
+  'Ballet': 25
+};
+const LIMITE_PADRAO = 30;
+
+// ESTILOS
 const Container = styled.div`
-  padding: 2rem;
-  max-width: 1200px;
-  margin: 0 auto;
-  color: white;
-  padding-bottom: 100px;
+  max-width: 1200px; margin: 0 auto; padding: 2rem;
+  color: #fff; animation: fadeIn 0.5s;
 `;
 
-const Title = styled.h2`
-  text-align: center; color: #ff4081; margin-bottom: 2rem;
-`;
-
-const SectionTitle = styled.h3`
-  color: white; margin-top: 3rem; border-bottom: 1px solid #333; padding-bottom: 10px;
+const Header = styled.div`
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1);
+  h2 { margin: 0; color: #ff4081; }
 `;
 
 const DashboardGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 20px;
-  margin-bottom: 40px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px; margin-bottom: 3rem;
 `;
 
-const StatCard = styled.div`
-  background: #222;
-  padding: 20px;
-  border-radius: 10px;
-  border-left: 5px solid ${props => props.color || '#ff4081'};
-  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+const CardStats = styled.div`
+  background: #1e1e1e; padding: 1.5rem; border-radius: 12px;
+  border: 1px solid #333; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
   
-  h4 { margin: 0; color: #aaa; font-size: 0.9rem; text-transform: uppercase; }
-  p { margin: 10px 0 0 0; font-size: 2.5rem; font-weight: bold; color: white; }
+  h3 { margin: 0 0 1rem 0; font-size: 1rem; opacity: 0.7; text-transform: uppercase; }
+  
+  .aula-row {
+    margin-bottom: 12px;
+  }
+  .aula-info {
+    display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 4px;
+  }
+  .progress-bg {
+    width: 100%; height: 8px; background: #333; border-radius: 4px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; transition: width 0.5s ease;
+  }
 `;
 
-const ChartContainer = styled.div`
-  background: #222;
-  padding: 20px;
-  border-radius: 10px;
-  margin-bottom: 40px;
-  height: 350px;
+const TableContainer = styled.div`
+  background: #1e1e1e; border-radius: 12px; overflow: hidden; border: 1px solid #333;
 `;
 
 const Table = styled.table`
-  width: 100%; border-collapse: collapse; margin-top: 1rem; background-color: #1a1a1a; border-radius: 8px; overflow: hidden;
-`;
-const Th = styled.th`background-color: #333; padding: 15px; text-align: left; color: #ff4081;`;
-const Td = styled.td`padding: 15px; border-bottom: 1px solid #333; vertical-align: middle;`;
-const ActionButton = styled.button`
-  background-color: ${props => props.$color || '#ff4081'}; color: white; border: none; padding: 8px 12px; 
-  border-radius: 4px; cursor: pointer; margin-right: 5px; font-weight: bold;
-  &:hover { opacity: 0.8; }
-`;
-const LinkButton = styled.a`
-  color: #ff4081; text-decoration: none; font-weight: bold; display: block; margin-bottom: 5px;
-  &:hover { text-decoration: underline; }
+  width: 100%; border-collapse: collapse; text-align: left;
+  th, td { padding: 15px; border-bottom: 1px solid #333; }
+  th { background: #252525; color: #ffcdd2; font-weight: 600; text-transform: uppercase; font-size: 0.85rem; }
+  tr:hover { background: #2a2a2a; }
+  td { font-size: 0.9rem; }
 `;
 
-const ModalOverlay = styled.div`
-  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 1000;
-`;
-const ModalContent = styled.div`
-  background: #222; padding: 30px; border-radius: 10px; width: 90%; max-width: 500px;
-  border: 1px solid #ff4081;
-`;
-const FormGroup = styled.div`
-  margin-bottom: 15px;
-  label { display: block; margin-bottom: 5px; color: #ccc; }
-  input, select { width: 100%; padding: 10px; background: #333; border: 1px solid #555; color: white; border-radius: 5px; }
+const Button = styled.button`
+  background: #d32f2f; color: white; border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-size: 0.8rem;
+  &:hover { background: #b71c1c; }
 `;
 
-export default function AdminPanel() {
+const LogoutBtn = styled.button`
+  background: transparent; border: 1px solid rgba(255,255,255,0.3); color: white;
+  padding: 8px 16px; border-radius: 20px; cursor: pointer; transition: all 0.3s;
+  &:hover { border-color: #ff4081; color: #ff4081; }
+`;
+
+export default function AdminPanel({ onLogout }) {
   const [inscricoes, setInscricoes] = useState([]);
-  const [coreografias, setCoreografias] = useState([]);
-  
-  const [editandoItem, setEditandoItem] = useState(null);
-  const [tipoEdicao, setTipoEdicao] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-  const carregarDados = () => {
-    fetch(`${API_URL}/inscricoes`)
-      .then(res => res.json())
-      .then(dados => setInscricoes(dados))
-      .catch(console.error);
-
-    fetch(`${API_URL}/coreografias`)
-      .then(res => res.json())
-      .then(dados => setCoreografias(dados))
-      .catch(console.error);
-  };
-
-  useEffect(() => { carregarDados(); }, []);
-
-  const dadosGrafico = inscricoes.reduce((acc, curr) => {
-    const aulaExistente = acc.find(item => item.name === curr.aula);
-    if (aulaExistente) {
-      aulaExistente.alunos += 1;
-    } else {
-      acc.push({ name: curr.aula, alunos: 1 });
-    }
-    return acc;
+  useEffect(() => {
+    fetchInscricoes();
   }, []);
 
-  const handleDelete = async (id, tipo) => {
-    if (!window.confirm('Tem certeza?')) return;
-    const endpoint = tipo === 'inscricao' ? '/inscricoes' : '/coreografias';
+  const fetchInscricoes = async () => {
     try {
-      const res = await fetch(`${API_URL}${endpoint}/${id}`, { method: 'DELETE' });
-      if (res.ok) { toast.success('Removido!'); carregarDados(); }
-    } catch (e) { toast.error('Erro de conexão.'); }
-  };
-
-  const handleSalvarEdicao = async (e) => {
-    e.preventDefault();
-    const endpoint = tipoEdicao === 'inscricao' ? '/inscricoes' : '/coreografias';
-    try {
-      const res = await fetch(`${API_URL}${endpoint}/${editandoItem._id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editandoItem)
-      });
-      if (res.ok) { toast.success('Atualizado!'); setEditandoItem(null); carregarDados(); }
-    } catch (e) { toast.error('Erro ao salvar.'); }
-  };
-
-  const abrirModal = (item, tipo) => { setEditandoItem({ ...item }); setTipoEdicao(tipo); };
-
-  const handleAlterarSenha = async () => {
-    const novaSenha = prompt("Digite a nova senha de Admin:");
-    if (!novaSenha) return;
-
-    const token = localStorage.getItem('poadance_token');
-
-    try {
-      const res = await fetch(`${API_URL}/alterar-senha`, {
-        method: 'PUT',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': token
-        },
-        body: JSON.stringify({ novaSenha })
-      });
-      
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/inscricoes`);
       if (res.ok) {
-        toast.success('Senha alterada! 🔐');
-      } else {
-        toast.error('Erro ao alterar senha.');
+        const data = await res.json();
+        setInscricoes(data);
       }
-    } catch (error) {
-      toast.error('Erro de conexão.');
+    } catch (error) { toast.error('Erro ao carregar dados.'); }
+    setLoading(false);
+  };
+
+  const deletarInscricao = async (id) => {
+    if (!confirm('Tem certeza que deseja remover este aluno?')) return;
+    try {
+      await fetch(`${import.meta.env.VITE_API_URL}/inscricoes/${id}`, { method: 'DELETE' });
+      toast.success('Removido com sucesso!');
+      fetchInscricoes();
+    } catch (err) { toast.error('Erro ao deletar.'); }
+  };
+
+  const lotacao = inscricoes.reduce((acc, curr) => {
+    acc[curr.aula] = (acc[curr.aula] || 0) + 1;
+    return acc;
+  }, {});
+
+  const getStatusAula = (nomeAula, qtdAtual) => {
+    let limite = LIMITE_PADRAO;
+    for (const [estilo, qtd] of Object.entries(MAPA_LIMITES)) {
+      if (nomeAula.includes(estilo)) limite = qtd;
     }
+    
+    const porcentagem = Math.min((qtdAtual / limite) * 100, 100);
+    
+    let cor = '#00e676';
+    if (porcentagem > 70) cor = '#ffea00';
+    if (porcentagem >= 100) cor = '#ff1744';
+
+    return { limite, porcentagem, cor };
   };
 
   return (
     <Container>
+      <Header>
+        <div>
+          <h2>Painel Administrativo</h2>
+          <p style={{opacity:0.6, fontSize:'0.9rem'}}>Bem-vindo, Gestor.</p>
+        </div>
+        <LogoutBtn onClick={onLogout}>Sair do Sistema</LogoutBtn>
+      </Header>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
-        <button 
-          onClick={handleAlterarSenha}
-          style={{
-            background: '#333', color: 'white', border: '1px solid #555', 
-            padding: '8px 15px', borderRadius: '5px', cursor: 'pointer', fontSize: '0.9rem'
-          }}
-        >
-          🔑 Alterar Senha
-        </button>
-      </div>
-      
-      <Title>Painel Administrativo 📊</Title>
-
+      <h3 style={{borderLeft:'4px solid #ff4081', paddingLeft:'10px'}}>Lotação das Turmas</h3>
       <DashboardGrid>
-        <StatCard color="#2196F3">
-          <h4>Total de Alunos</h4>
-          <p>{inscricoes.length}</p>
-        </StatCard>
-        <StatCard color="#ff4081">
-          <h4>Coreografias</h4>
-          <p>{coreografias.length}</p>
-        </StatCard>
-        <StatCard color="#00E676">
-          <h4>Faturamento (Est.)</h4>
-          <p>R$ {inscricoes.length * 0},00</p>
-        </StatCard>
+        {Object.keys(lotacao).length === 0 ? (
+          <p style={{opacity:0.5}}>Nenhuma inscrição realizada ainda.</p>
+        ) : (
+          <CardStats>
+            {Object.entries(lotacao).map(([aula, qtd]) => {
+              const { limite, porcentagem, cor } = getStatusAula(aula, qtd);
+              return (
+                <div key={aula} className="aula-row">
+                  <div className="aula-info">
+                    <span>{aula}</span>
+                    <strong style={{color: cor}}>{qtd} / {limite}</strong>
+                  </div>
+                  <div className="progress-bg">
+                    <div 
+                      className="progress-fill" 
+                      style={{ width: `${porcentagem}%`, background: cor }}
+                    />
+                  </div>
+                </div>
+              );
+            })}
+          </CardStats>
+        )}
+
+        <CardStats>
+          <h3>Resumo Geral</h3>
+          <h1 style={{fontSize:'3rem', margin:'0', color:'#ff4081'}}>{inscricoes.length}</h1>
+          <p>Alunos Matriculados</p>
+        </CardStats>
       </DashboardGrid>
 
-      <SectionTitle>Popularidade das Aulas</SectionTitle>
-      <ChartContainer>
-        {dadosGrafico.length > 0 ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={dadosGrafico}>
-              <XAxis dataKey="name" stroke="#ccc" tick={{fontSize: 12}} />
-              <YAxis allowDecimals={false} stroke="#ccc" />
-              <Tooltip 
-                contentStyle={{backgroundColor: '#333', border: 'none', borderRadius: '5px'}}
-                cursor={{fill: 'rgba(255, 255, 255, 0.1)'}}
-              />
-              <Bar dataKey="alunos" fill="#ff4081" radius={[5, 5, 0, 0]}>
-                {dadosGrafico.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#ff4081' : '#2196F3'} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <p style={{textAlign: 'center', paddingTop: '150px', color: '#666'}}>
-            Ainda não há dados suficientes para o gráfico.
-          </p>
-        )}
-      </ChartContainer>
-
-      <SectionTitle>Lista de Alunos ({inscricoes.length})</SectionTitle>
-      <Table>
-        <thead>
-          <tr>
-            <Th>Nome</Th> <Th>Email</Th> <Th>Aula</Th> <Th>Ações</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {inscricoes.map(item => (
-            <tr key={item._id}>
-              <Td>{item.nome}</Td> <Td>{item.email}</Td> <Td>{item.aula}</Td>
-              <Td>
-                <ActionButton $color="#2196F3" onClick={() => abrirModal(item, 'inscricao')}>✏️</ActionButton>
-                <ActionButton $color="#f44336" onClick={() => handleDelete(item._id, 'inscricao')}>🗑️</ActionButton>
-              </Td>
+      <h3 style={{borderLeft:'4px solid #ff4081', paddingLeft:'10px', marginTop:'3rem'}}>Lista de Alunos</h3>
+      <TableContainer>
+        <Table>
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Aula Selecionada</th>
+              <th>Data Inscrição</th>
+              <th>Ações</th>
             </tr>
-          ))}
-        </tbody>
-      </Table>
-
-      <SectionTitle>Coreografias Enviadas ({coreografias.length})</SectionTitle>
-      <Table>
-        <thead>
-          <tr><Th>Obra</Th> <Th>Mídia</Th> <Th>Ações</Th></tr>
-        </thead>
-        <tbody>
-          {coreografias.map(item => (
-            <tr key={item._id}>
-              <Td>
-                <strong>{item.nomeCoreografia}</strong><br/>
-                <small>{item.coreografo}</small>
-              </Td>
-              <Td>
-                <LinkButton href={item.videoLink} target="_blank">📺 Vídeo</LinkButton>
-                <LinkButton href={item.caminhoMusica} target="_blank">🎵 Música</LinkButton>
-              </Td>
-              <Td>
-                <ActionButton $color="#2196F3" onClick={() => abrirModal(item, 'coreografia')}>✏️</ActionButton>
-                <ActionButton $color="#f44336" onClick={() => handleDelete(item._id, 'coreografia')}>🗑️</ActionButton>
-              </Td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
-
-      {editandoItem && (
-        <ModalOverlay onClick={() => setEditandoItem(null)}>
-          <ModalContent onClick={e => e.stopPropagation()}>
-            <h3>Editar</h3>
-            <form onSubmit={handleSalvarEdicao}>
-              <FormGroup>
-                <label>Nome</label>
-                <input 
-                  value={tipoEdicao === 'inscricao' ? editandoItem.nome : editandoItem.nomeCoreografia} 
-                  onChange={e => setEditandoItem({...editandoItem, [tipoEdicao === 'inscricao' ? 'nome' : 'nomeCoreografia']: e.target.value})}
-                />
-              </FormGroup>
-              <div style={{display: 'flex', gap: '10px', marginTop: '20px'}}>
-                <ActionButton type="submit" $color="#4CAF50" style={{flex: 1}}>Salvar</ActionButton>
-                <ActionButton type="button" $color="#555" onClick={() => setEditandoItem(null)} style={{flex: 1}}>Cancelar</ActionButton>
-              </div>
-            </form>
-          </ModalContent>
-        </ModalOverlay>
-      )}
-
+          </thead>
+          <tbody>
+            {inscricoes.map(insc => (
+              <tr key={insc._id}>
+                <td>
+                  <strong>{insc.nome}</strong><br/>
+                  <span style={{opacity:0.6, fontSize:'0.8rem'}}>{insc.email}</span>
+                </td>
+                <td>{insc.aula}</td>
+                <td>{new Date(insc.data).toLocaleDateString()}</td>
+                <td>
+                  <Button onClick={() => deletarInscricao(insc._id)}>Remover</Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </TableContainer>
     </Container>
   );
 }

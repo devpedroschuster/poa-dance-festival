@@ -5,16 +5,29 @@ const multer = require('multer');
 const mongoose = require('mongoose');
 const { v2: cloudinary } = require('cloudinary');
 const { CloudinaryStorage } = require('multer-storage-cloudinary');
-//const nodemailer = require('nodemailer'); Deixando por enquanto, mas não funcionou (timeout)
 const { Resend } = require('resend');
-
-
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || 'segredo_padrao_dev';
+
+app.use(helmet());
+
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 100,
+  message: { erro: 'Muitas tentativas vindas deste IP, tente novamente mais tarde.' }
+});
+
+app.use(limiter);
+
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -30,9 +43,6 @@ const storage = new CloudinaryStorage({
   },
 });
 const upload = multer({ storage: storage });
-
-const resend = new Resend(process.env.RESEND_API_KEY);
-
 
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('✅ MongoDB Conectado!'))
@@ -73,7 +83,6 @@ app.use(cors({
 }));
 app.use(express.json());
 
-
 app.post('/api/login', async (req, res) => {
   const { login, senha } = req.body;
   try {
@@ -90,23 +99,52 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+const MAPA_LIMITES = {
+  'Jazz Funk': 25,
+  'Hip Hop': 40,
+  'Contemporâneo': 30,
+  'K-Pop': 35,
+  'Stiletto': 20,
+  'Ballet': 25
+};
+const LIMITE_PADRAO = 30;
+
 app.post('/api/inscrever', async (req, res) => {
+  const { aula } = req.body;
+
   try {
+    let limiteAtual = LIMITE_PADRAO;
+    
+    for (const [estilo, qtd] of Object.entries(MAPA_LIMITES)) {
+      if (aula.includes(estilo)) {
+        limiteAtual = qtd;
+        break;
+      }
+    }
+
+    const totalInscritos = await Inscricao.countDocuments({ aula: aula });
+
+    if (totalInscritos >= limiteAtual) {
+      return res.status(400).json({ 
+        erro: `Poxa! As vagas para ${aula} esgotaram (${totalInscritos}/${limiteAtual}). 🚫` 
+      });
+    }
+
     const novaInscricao = new Inscricao(req.body);
     await novaInscricao.save();
     
-await resend.emails.send({
+    await resend.emails.send({
       from: 'POA Dance Festival <onboarding@resend.dev>',
       to: novaInscricao.email,
       subject: 'Inscrição Confirmada! - POA Dance Festival 💃✨',
       html: `<h1>Olá, ${novaInscricao.nome}!</h1><p>Sua inscrição em <strong>${novaInscricao.aula}</strong> foi confirmada.</p>`
     });
-    // ----------------------------------------
 
     res.status(201).json({ mensagem: 'Sucesso!' });
+
   } catch (error) {
-    console.error('Erro ao enviar inscrição:', error);
-    res.status(500).json({ erro: 'Erro ao processar inscrição' });
+    console.error('Erro:', error);
+    res.status(500).json({ erro: 'Erro interno no servidor' });
   }
 });
 
@@ -138,43 +176,6 @@ app.get('/api/coreografias', async (req, res) => {
   } catch (error) { res.status(500).json({ erro: 'Erro ao buscar' }); }
 });
 
-app.post('/api/submeter-coreografia', upload.single('musica'), async (req, res) => {
-  if (!req.file) return res.status(400).json({ mensagem: 'Faltou a música!' });
-  try {
-    const novaCoreografia = new Coreografia({
-      ...req.body,
-      caminhoMusica: req.file.path
-    });
-    await novaCoreografia.save();
-    
-await resend.emails.send({
-      from: 'POA Dance Festival <onboarding@resend.dev>', // Email obrigatório para testes
-      to: novaCoreografia.email,
-      subject: 'Material Recebido! - POA Dance Festival 🎵',
-      html: `<h1>Olá, ${novaCoreografia.coreografo}!</h1><p>Recebemos <strong>${novaCoreografia.nomeCoreografia}</strong> com sucesso.</p>`
-    });
-    
-    res.status(201).json({ mensagem: 'Sucesso!' });
-  } catch (error) {
-    console.error('Erro ao enviar inscrição:', error); // Bom para ver erros no log
-    res.status(500).json({ erro: 'Erro ao processar inscrição' });
-  }
-});
-
-app.delete('/api/coreografias/:id', async (req, res) => {
-  try {
-    await Coreografia.findByIdAndDelete(req.params.id);
-    res.status(200).json({ mensagem: 'Removido!' });
-  } catch (error) { res.status(500).json({ erro: 'Erro ao deletar' }); }
-});
-
-app.put('/api/coreografias/:id', async (req, res) => {
-  try {
-    const atualizado = await Coreografia.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(atualizado);
-  } catch (error) { res.status(500).json({ erro: 'Erro ao atualizar' }); }
-});
-
 app.put('/api/alterar-senha', async (req, res) => {
   const token = req.headers['authorization'];
   if (!token) return res.status(401).json({ mensagem: 'Acesso negado' });
@@ -190,11 +191,12 @@ app.put('/api/alterar-senha', async (req, res) => {
 
 app.listen(PORT, async () => {
   console.log(`🚀 Servidor rodando na porta ${PORT}`);
+  
   const adminExiste = await Usuario.findOne({ login: 'admin' });
   if (!adminExiste) {
     const salt = await bcrypt.genSalt(10);
     const senhaHash = await bcrypt.hash('admin123', salt);
     await new Usuario({ login: 'admin', senha: senhaHash }).save();
-    console.log('✅ Admin criado: admin / admin123');
+    console.log('✅ Admin padrão criado: admin / admin123');
   }
 });
